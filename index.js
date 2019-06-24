@@ -13,6 +13,6 @@ const {Builder, By, Key, until} = require('selenium-webdriver');
     let title2 = await driver.getTitle();
     console.log(title2)
   } finally {
-    await driver.quit();
+    // await driver.quit();
   }
 })()
