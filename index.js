@@ -15,7 +15,8 @@ const {Builder, By, Key, until} = require('selenium-webdriver');
     let title2 = await driver.getTitle();
     console.log(title2);
 
-    await driver.findElement(By.xpath("//a[@href='javascript:runSearch(\'56139\')']")).click();
+    // await driver.findElement(By.xpath("//a[@href='javascript:runSearch(\'56139\')']")).click();
+    driver.findElement(By.linkText('<span id="text_1">Run</span>')).click()
     await driver.wait(until.titleIs('FMAP - SearchResults'), 10000);
     let title3 = await driver.getTitle();
     console.log(title3);
