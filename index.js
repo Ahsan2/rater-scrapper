@@ -9,10 +9,10 @@ const {Builder, By, Key, until} = require('selenium-webdriver');
     await driver.findElement(By.name('loginId')).sendKeys('W280572');
     await driver.findElement(By.name('password')).sendKeys('JF2019');
     await driver.findElement(By.name('Login')).click();
-    await driver.get('https://fmap.citizensfla.com/fmap/searchcriteria.do');
+    await driver.wait(until.titleIs('FMAP - Agent Home Page'), 1000);
     let title2 = await driver.getTitle();
     console.log(title2)
   } finally {
-    // await driver.quit();
+    await driver.quit();
   }
 })()
