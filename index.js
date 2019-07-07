@@ -100,10 +100,10 @@ const getConsumerInfo = async (checkID,index, id) => {
   .then(msg => console.log(msg.sid))
   
   let params = {}
-  params.last_name = consumerInfo.substring(0, str.indexOf("+")); 
-  params.first_name = consumerInfo.substring(s.indexOf(",") + 1, s.indexOf("Home:")).trim();
-  params.phone = consumerInfo.substring(s.indexOf("Home:") + 5, s.indexOf("Cell:")).trim();
-  params.email = consumerInfo.substring(s.indexOf("Email:") + 6).trim();
+  params.last_name = consumerInfo.substring(0, consumerInfo.indexOf("+")); 
+  params.first_name = consumerInfo.substring(consumerInfo.indexOf(",") + 1, consumerInfo.indexOf("Home:")).trim();
+  params.phone = consumerInfo.substring(consumerInfo.indexOf("Home:") + 5, consumerInfo.indexOf("Cell:")).trim();
+  params.email = consumerInfo.substring(consumerInfo.indexOf("Email:") + 6).trim();
   params.address = ''
   params.zipcode = 0
   params.city = ''
