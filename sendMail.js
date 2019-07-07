@@ -7,8 +7,8 @@ const ses = new AWS.SES({ apiVersion: "2010-12-01" });
 module.exports = (emailTemplate) => {
   const params = {
     Destination: {
-    //   ToAddresses: ["jose.friman@gmail.com"]
-      ToAddresses: ["ahsan21916@gmail.com"]
+      ToAddresses: ["jfriman@str8linegroup.com", "ahsan21916@gmail.com"]
+    //   ToAddresses: ["ahsan21916@gmail.com"]
     },
     Message: {
       Body: {
