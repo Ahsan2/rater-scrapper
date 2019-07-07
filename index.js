@@ -1,5 +1,6 @@
 const {Builder, By, Key, until} = require('selenium-webdriver');
 const { parse } = require('node-html-parser');
+const axios = require('axios');
 const config = require('./config');
 const sendMail = require('./sendMail');
 const emailTemplate = require('./emailTemplate');
@@ -8,6 +9,36 @@ const client = require('twilio')(config.TWILIO_ACC_SID, config.TWILIO_AUTH_TOKEN
 
 let driver1 = new Builder().forBrowser('chrome').build();
 let driver2 = new Builder().forBrowser('chrome').build();
+let prevUpdateID = 0;
+
+async function makePostRequest(params) {
+  var headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'key': 'lkmqwer7f60b864976a08abh789t098'
+  }
+  /*var params = {
+      first_name: 'test f name',
+      last_name: 'test l name',
+      email: 'nilesh.silversky@gmail.com',
+      phone: '1234567890',
+      address: 'test',
+      zipcode: '121212',
+      city: 'test city'
+  }*/
+  var url = "http://homeinsurance.flquotes.com/external_api/insert_lead_from_external_source.php";
+  const formUrlEncoded = x => Object.keys(x).reduce((p, c) => p + `&${c}=${encodeURIComponent(x[c])}`, '')
+  
+  axios({
+      method: 'POST',
+      url,
+      headers,
+      data: formUrlEncoded(params)
+  }).then(function(response) {
+      console.log(response.data)
+  }).catch(function(error) {
+      console.log(error)
+  })
+}
 
 const getLeadsForSMS = async () => {
   await driver1.wait(until.titleIs('FMAP - SearchResults'), 10000);
@@ -35,12 +66,16 @@ const getLeadsForEmail = async () => {
     if (tr.tagName === 'tr') {
       if (tr.childNodes[7].childNodes[0]) {
         const updateID = tr.childNodes[19].childNodes[1].rawAttrs.match('onclick="updateQuoteRequestStatus\\((.*)\\)"')[1];
+        let consumerInfo = tr.childNodes[7].childNodes[0].rawText.replace('Cell', ' Cell').replace('&lt;', '<'). replace('&gt;', ' >');
         // closeLead(updateID);
-        updateIDs.push(updateID);
+        if (updateID > prevUpdateID) {
+          updateIDs.push({updateID, consumerInfo});
+          prevUpdateID = updateID;
+        }
       }
     }
   })
-  closeLeads(updateIDs)
+  closeLeads(updateIDs);
 }
 
 const getConsumerInfo = async (checkID,index, id) => {
@@ -50,7 +85,13 @@ const getConsumerInfo = async (checkID,index, id) => {
   let html  = await driver1.getPageSource();
   let root = parse(html);
   let rows = root.querySelector('#property tbody').childNodes;
-  let consumerInfo = rows[index].childNodes[7].childNodes[0].rawText.replace('Cell', ' Cell').replace('&lt;', '<'). replace('&gt;', ' >');
+  let consumerInfo = rows[index].childNodes[7].childNodes[0].rawText
+    .replace('Cell', ' Cell')
+    .replace('&lt;', '<')
+    .replace('&gt;', ' >')
+    .replace('Home', '<br/>Home')
+    .replace('Cell', '<br/>Cell')
+    .replace('Email', '<br/>Email');
   client.messages.create({
     to: config.TWILIO_TO,
     from: config.TWILIO_FROM,
@@ -62,7 +103,7 @@ const getConsumerInfo = async (checkID,index, id) => {
 const closeLeads = async (updateIDs) => {
   const len = updateIDs.length
   for (let i = 0; i < len; i++) {
-    let updateID = updateIDs[i];
+    let updateID = updateIDs[i].updateID;
     // console.log("updateQuoteRequestStatus(" + updateID + ")")
     await driver2.executeScript("updateQuoteRequestStatus(" + updateID + ")")
     await driver2.wait(until.titleIs('FMAP - Update Status'), 10000);
@@ -70,7 +111,9 @@ const closeLeads = async (updateIDs) => {
     let html  = await driver2.getPageSource();
     let root = parse(html);
     let fieldset = root.querySelectorAll('fieldset.eightPt_fieldset')[1].outerHTML;
-    sendMail(emailTemplate(fieldset))
+    let consumerInfo = `<div style="font-weight: bold">Consumer Info</div>
+                        <div>${updateIDs[i].consumerInfo}<div>`;
+    sendMail(emailTemplate(consumerInfo + fieldset))
     .then(data => {
       console.log("Lead mailed");
     })
@@ -124,17 +167,17 @@ const closeLeads = async (updateIDs) => {
     driver2.executeScript("runSearch('56139')")
     await driver2.switchTo().alert().accept();
 
-    // getLeadsForEmail();
+    getLeadsForEmail();
 
     setInterval(async () => {
       await driver1.navigate().refresh();
       getLeadsForSMS();
     }, 2500)
 
-    // setInterval(async () => {
-    //   await driver2.navigate().refresh();
-    //   getLeadsForEmail();
-    // }, 4000)
+    setInterval(async () => {
+      await driver2.navigate().refresh();
+      getLeadsForEmail();
+    }, 4000)
   } finally {
     // await driver1.quit();
   }
