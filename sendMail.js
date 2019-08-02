@@ -8,7 +8,7 @@ module.exports = (emailTemplate) => {
   const params = {
     Destination: {
       ToAddresses: ["jfriman@str8linegroup.com", "ahsan21916@gmail.com"]
-    //   ToAddresses: ["ahsan21916@gmail.com"]
+      // ToAddresses: ["ahsan21916@gmail.com"]
     },
     Message: {
       Body: {

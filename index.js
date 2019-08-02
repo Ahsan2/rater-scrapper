@@ -9,6 +9,7 @@ const client = require('twilio')(config.TWILIO_ACC_SID, config.TWILIO_AUTH_TOKEN
 
 let driver1 = new Builder().forBrowser('chrome').build();
 let driver2 = new Builder().forBrowser('chrome').build();
+let interval1 = null, interval2 = null;
 let prevUpdateID = 0;
 
 async function makePostRequest(params) {
@@ -34,7 +35,8 @@ async function makePostRequest(params) {
       headers,
       data: formUrlEncoded(params)
   }).then(function(response) {
-      console.log(response.data)
+      // console.log(response.data)
+      console.log(response.data.ResponseMsg)
   }).catch(function(error) {
       console.log(error)
   })
@@ -47,6 +49,7 @@ const getLeadsForSMS = async () => {
   let rows = root.querySelector('#property tbody') ? root.querySelector('#property tbody').childNodes : [];
   rows.forEach((tr, j) => {
     if (tr.tagName === 'tr') {
+      
       if (!tr.childNodes[7].childNodes[0]) {
         const checkID = tr.childNodes[19].childNodes[3].rawAttrs.match('onclick="interested\\((.*)\\)"')[1];
         getConsumerInfo(checkID, j, tr.childNodes[5].childNodes[0].rawText);
@@ -79,7 +82,7 @@ const getLeadsForEmail = async () => {
 }
 
 const getConsumerInfo = async (checkID,index, id) => {
-  driver1.executeScript("interested(" + checkID + ")")
+  await driver1.executeScript("interested(" + checkID + ")")
   await driver1.switchTo().alert().accept();
   await driver1.wait(until.titleIs('FMAP - SearchResults'), 10000);
   let html  = await driver1.getPageSource();
@@ -100,15 +103,19 @@ const getConsumerInfo = async (checkID,index, id) => {
   .then(msg => console.log(msg.sid))
   
   let params = {}
-  params.last_name = consumerInfo.substring(0, consumerInfo.indexOf("+")); 
+  params.last_name = consumerInfo.substring(0, consumerInfo.indexOf(",")); 
   params.first_name = consumerInfo.substring(consumerInfo.indexOf(",") + 1, consumerInfo.indexOf("Home:")).trim();
   params.phone = consumerInfo.substring(consumerInfo.indexOf("Home:") + 5, consumerInfo.indexOf("Cell:")).trim();
+  params.phone.replace('(', '')
+  params.phone.replace(')', '')
+  params.phone.replace(' ', '')
+  params.phone.replace('-', '')
   params.email = consumerInfo.substring(consumerInfo.indexOf("Email:") + 6).trim();
-  params.address = ''
-  params.zipcode = 0
-  params.city = ''
-  console.log(params)
-  // makePostRequest(params)
+  params.address = 'na'
+  params.zipcode = 123
+  params.city = 'na'
+  // console.log(params)
+  makePostRequest(params)
 }
 
 const closeLeads = async (updateIDs) => {
@@ -137,7 +144,7 @@ const closeLeads = async (updateIDs) => {
     await driver2.get('https://fmap.citizensfla.com/fmap/searchcriteria.do');
     await driver2.wait(until.titleIs('FMAP - Agent Home Page'), 10000);
 
-    driver2.executeScript("runSearch('56139')")
+    await driver2.executeScript("runSearch('56139')")
     await driver2.switchTo().alert().accept();
   }
 }
@@ -157,7 +164,7 @@ const closeLeads = async (updateIDs) => {
     // let title2 = await driver1.getTitle();
     // console.log(title2);
 
-    driver1.executeScript("runSearch('56139')")
+    await driver1.executeScript("runSearch('56139')")
     await driver1.switchTo().alert().accept();
 
     getLeadsForSMS();
@@ -175,21 +182,69 @@ const closeLeads = async (updateIDs) => {
     // let title2 = await driver2.getTitle();
     // console.log(title2);
 
-    driver2.executeScript("runSearch('56139')")
+    await driver2.executeScript("runSearch('56139')")
     await driver2.switchTo().alert().accept();
 
     getLeadsForEmail();
 
-    setInterval(async () => {
+    interval1 = setInterval(async () => {
       await driver1.navigate().refresh();
       getLeadsForSMS();
     }, 2500)
 
-    setInterval(async () => {
+    interval2 = setInterval(async () => {
       await driver2.navigate().refresh();
       getLeadsForEmail();
     }, 4000)
-  } finally {
-    // await driver1.quit();
+  } catch(err) {
+    clearInterval(interval1)
+    clearInterval(interval2)
+    console.log(err)
+
+    // Driver for SMS
+    await driver1.get('https://fmap.citizensfla.com/fmap/login.do');
+    await driver1.wait(until.titleIs('FMAP - Login'), 10000);
+    // let title1 = await driver1.getTitle();
+    // console.log(title1);
+
+    await driver1.findElement(By.name('loginId')).sendKeys(config.FMAP_USERNAME);
+    await driver1.findElement(By.name('password')).sendKeys(config.FMAP_PASSWORD);
+    await driver1.findElement(By.name('Login')).click();
+    await driver1.wait(until.titleIs('FMAP - Agent Home Page'), 10000);
+    // let title2 = await driver1.getTitle();
+    // console.log(title2);
+
+    await driver1.executeScript("runSearch('56139')")
+    await driver1.switchTo().alert().accept();
+
+    getLeadsForSMS();
+    
+    // Driver for Email
+    await driver2.get('https://fmap.citizensfla.com/fmap/login.do');
+    await driver2.wait(until.titleIs('FMAP - Login'), 10000);
+    // let title1 = await driver2.getTitle();
+    // console.log(title1);
+
+    await driver2.findElement(By.name('loginId')).sendKeys(config.FMAP_USERNAME);
+    await driver2.findElement(By.name('password')).sendKeys(config.FMAP_PASSWORD);
+    await driver2.findElement(By.name('Login')).click();
+    await driver2.wait(until.titleIs('FMAP - Agent Home Page'), 10000);
+    // let title2 = await driver2.getTitle();
+    // console.log(title2);
+
+    await driver2.executeScript("runSearch('56139')")
+    await driver2.switchTo().alert().accept();
+
+    getLeadsForEmail();
+
+    interval1 = setInterval(async () => {
+      await driver1.navigate().refresh();
+      getLeadsForSMS();
+    }, 2500)
+
+    interval2 = setInterval(async () => {
+      await driver2.navigate().refresh();
+      getLeadsForEmail();
+    }, 4000)
   }
 })()
