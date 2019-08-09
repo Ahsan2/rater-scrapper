@@ -43,109 +43,125 @@ async function makePostRequest(params) {
 }
 
 const getLeadsForSMS = async () => {
-  await driver1.wait(until.titleIs('FMAP - SearchResults'), 10000);
-  let html  = await driver1.getPageSource();
-  let root = parse(html);
-  let rows = root.querySelector('#property tbody') ? root.querySelector('#property tbody').childNodes : [];
-  rows.forEach((tr, j) => {
-    if (tr.tagName === 'tr') {
-      
-      if (!tr.childNodes[7].childNodes[0]) {
-        const checkID = tr.childNodes[19].childNodes[3].rawAttrs.match('onclick="interested\\((.*)\\)"')[1];
-        getConsumerInfo(checkID, j, tr.childNodes[5].childNodes[0].rawText);
+  try {
+    await driver1.wait(until.titleIs('FMAP - SearchResults'), 10000);
+    let html  = await driver1.getPageSource();
+    let root = parse(html);
+    let rows = root.querySelector('#property tbody') ? root.querySelector('#property tbody').childNodes : [];
+    rows.forEach((tr, j) => {
+      if (tr.tagName === 'tr') {
+        
+        if (!tr.childNodes[7].childNodes[0]) {
+          const checkID = tr.childNodes[19].childNodes[3].rawAttrs.match('onclick="interested\\((.*)\\)"')[1];
+          getConsumerInfo(checkID, j, tr.childNodes[5].childNodes[0].rawText);
+        }
       }
-    }
-  })
+    })
+  } catch (error) {
+    console.log('getLeadsForSMS Error:', error)
+  }
 }
 
 const getLeadsForEmail = async () => {
-  await driver2.wait(until.titleIs('FMAP - SearchResults'), 10000);
-  let html  = await driver2.getPageSource();
-  let root = parse(html);
-  let rows = root.querySelector('#property tbody') ? root.querySelector('#property tbody').childNodes : [];
-  let updateIDs = [];
-
-  rows.forEach((tr, j) => {
-    if (tr.tagName === 'tr') {
-      if (tr.childNodes[7].childNodes[0]) {
-        const updateID = tr.childNodes[19].childNodes[1].rawAttrs.match('onclick="updateQuoteRequestStatus\\((.*)\\)"')[1];
-        let consumerInfo = tr.childNodes[7].childNodes[0].rawText.replace('Cell', ' Cell');//.replace('&lt;', '<'). replace('&gt;', ' >');
-        // closeLead(updateID);
-        if (updateID > prevUpdateID) {
-          updateIDs.push({updateID, consumerInfo});
-          prevUpdateID = updateID;
+  try {
+    await driver2.wait(until.titleIs('FMAP - SearchResults'), 10000);
+    let html  = await driver2.getPageSource();
+    let root = parse(html);
+    let rows = root.querySelector('#property tbody') ? root.querySelector('#property tbody').childNodes : [];
+    let updateIDs = [];
+  
+    rows.forEach((tr, j) => {
+      if (tr.tagName === 'tr') {
+        if (tr.childNodes[7].childNodes[0]) {
+          const updateID = tr.childNodes[19].childNodes[1].rawAttrs.match('onclick="updateQuoteRequestStatus\\((.*)\\)"')[1];
+          let consumerInfo = tr.childNodes[7].childNodes[0].rawText.replace('Cell', ' Cell');//.replace('&lt;', '<'). replace('&gt;', ' >');
+          // closeLead(updateID);
+          if (updateID > prevUpdateID) {
+            updateIDs.push({updateID, consumerInfo});
+            prevUpdateID = updateID;
+          }
         }
       }
-    }
-  })
-  closeLeads(updateIDs);
+    })
+    closeLeads(updateIDs);
+  } catch (error) {
+    console.log('getLeadsForEmail Error:', error)
+  }
 }
 
 const getConsumerInfo = async (checkID,index, id) => {
-  await driver1.executeScript("interested(" + checkID + ")")
-  await driver1.switchTo().alert().accept();
-  await driver1.wait(until.titleIs('FMAP - SearchResults'), 10000);
-  let html  = await driver1.getPageSource();
-  let root = parse(html);
-  let rows = root.querySelector('#property tbody').childNodes;
-  let consumerInfo = rows[index].childNodes[7].childNodes[0].rawText
-  let body = consumerInfo.replace('Cell', ' Cell')
-  // .replace('&lt;', '<')
-  // .replace('&gt;', ' >')
-  .replace('Home', '<br/>Home')
-  .replace('Cell', '<br/>Cell')
-  .replace('Email', '<br/>Email');
-  client.messages.create({
-    to: config.TWILIO_TO,
-    from: config.TWILIO_FROM,
-    body
-  })
-  .then(msg => console.log(msg.sid))
-  
-  let params = {}
-  params.last_name = consumerInfo.substring(0, consumerInfo.indexOf(",")); 
-  params.first_name = consumerInfo.substring(consumerInfo.indexOf(",") + 1, consumerInfo.indexOf("Home:")).trim();
-  params.phone = consumerInfo.substring(consumerInfo.indexOf("Home:") + 5, consumerInfo.indexOf("Cell:")).trim();
-  params.phone.replace('(', '')
-  params.phone.replace(')', '')
-  params.phone.replace(' ', '')
-  params.phone.replace('-', '')
-  params.email = consumerInfo.substring(consumerInfo.indexOf("Email:") + 6).trim();
-  params.address = 'na'
-  params.zipcode = 123
-  params.city = 'na'
-  // console.log(params)
-  makePostRequest(params)
+  try {
+    await driver1.executeScript("interested(" + checkID + ")")
+    await driver1.switchTo().alert().accept();
+    await driver1.wait(until.titleIs('FMAP - SearchResults'), 10000);
+    let html  = await driver1.getPageSource();
+    let root = parse(html);
+    let rows = root.querySelector('#property tbody').childNodes;
+    let consumerInfo = rows[index].childNodes[7].childNodes[0].rawText
+    let body = consumerInfo.replace('Cell', ' Cell')
+    // .replace('&lt;', '<')
+    // .replace('&gt;', ' >')
+    .replace('Home', '<br/>Home')
+    .replace('Cell', '<br/>Cell')
+    .replace('Email', '<br/>Email');
+    client.messages.create({
+      to: config.TWILIO_TO,
+      from: config.TWILIO_FROM,
+      body
+    })
+    .then(msg => console.log(msg.sid))
+    
+    let params = {}
+    params.last_name = consumerInfo.substring(0, consumerInfo.indexOf(",")); 
+    params.first_name = consumerInfo.substring(consumerInfo.indexOf(",") + 1, consumerInfo.indexOf("Home:")).trim();
+    params.phone = consumerInfo.substring(consumerInfo.indexOf("Home:") + 5, consumerInfo.indexOf("Cell:")).trim();
+    params.phone.replace('(', '')
+    params.phone.replace(')', '')
+    params.phone.replace(' ', '')
+    params.phone.replace('-', '')
+    params.email = consumerInfo.substring(consumerInfo.indexOf("Email:") + 6).trim();
+    params.address = 'na'
+    params.zipcode = 123
+    params.city = 'na'
+    // console.log(params)
+    makePostRequest(params)
+  } catch (error) {
+    console.log('getConsumerInfo Error:', error)
+  }
 }
 
 const closeLeads = async (updateIDs) => {
-  const len = updateIDs.length
-  for (let i = 0; i < len; i++) {
-    let updateID = updateIDs[i].updateID;
-    // console.log("updateQuoteRequestStatus(" + updateID + ")")
-    await driver2.executeScript("updateQuoteRequestStatus(" + updateID + ")")
-    await driver2.wait(until.titleIs('FMAP - Update Status'), 10000);
-    // let fieldset = await driver2.findElements(By.tagName("fieldset"));
-    let html  = await driver2.getPageSource();
-    let root = parse(html);
-    let fieldset = root.querySelectorAll('fieldset.eightPt_fieldset')[1].outerHTML;
-    let consumerInfo = `<div style="font-weight: bold">Consumer Info</div>
-                        <div>${updateIDs[i].consumerInfo}<div>`;
-    sendMail(emailTemplate(consumerInfo + fieldset))
-    .then(data => {
-      console.log("Lead mailed");
-    })
-    .catch(error => {
-      console.log("Mail error:", error);
-    });
-
-    await driver2.findElement(By.name('update')).click();
-
-    await driver2.get('https://fmap.citizensfla.com/fmap/searchcriteria.do');
-    await driver2.wait(until.titleIs('FMAP - Agent Home Page'), 10000);
-
-    await driver2.executeScript("runSearch('56139')")
-    await driver2.switchTo().alert().accept();
+  try {
+    const len = updateIDs.length
+    for (let i = 0; i < len; i++) {
+      let updateID = updateIDs[i].updateID;
+      // console.log("updateQuoteRequestStatus(" + updateID + ")")
+      await driver2.executeScript("updateQuoteRequestStatus(" + updateID + ")")
+      await driver2.wait(until.titleIs('FMAP - Update Status'), 10000);
+      // let fieldset = await driver2.findElements(By.tagName("fieldset"));
+      let html  = await driver2.getPageSource();
+      let root = parse(html);
+      let fieldset = root.querySelectorAll('fieldset.eightPt_fieldset')[1].outerHTML;
+      let consumerInfo = `<div style="font-weight: bold">Consumer Info</div>
+                          <div>${updateIDs[i].consumerInfo}<div>`;
+      sendMail(emailTemplate(consumerInfo + fieldset))
+      .then(data => {
+        console.log("Lead mailed");
+      })
+      .catch(error => {
+        console.log("Mail error:", error);
+      });
+  
+      await driver2.findElement(By.name('update')).click();
+  
+      await driver2.get('https://fmap.citizensfla.com/fmap/searchcriteria.do');
+      await driver2.wait(until.titleIs('FMAP - Agent Home Page'), 10000);
+  
+      await driver2.executeScript("runSearch('56139')")
+      await driver2.switchTo().alert().accept();
+    }
+  } catch (error) {
+    console.log('closeLeads Error:', error)
   }
 }
 
